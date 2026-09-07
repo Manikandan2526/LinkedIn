@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinkedIn - new Post</title>
+<style>
+  /* =========================================================
+   FONT / GENERAL
+   ========================================================= */
+
+:root {
+  --white: #ffffff;
+  --background: #f4f6f8;
+  --panel: #f7f8fa;
+  --text: #242424;
+  --muted: #6b6f75;
+  --line: #e1e1e1;
+
+  --accent: #4f8cff;
+  --accent-dark: #3978e8;
+  --accent-light: #eaf2ff;
+
+  --incoming: #f1f1f1;
+  --online: #35c759;
+  --danger: #e85d5d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+
+  background: var(--background);
+
+  font-family:
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  color: var(--text);
+
+  font-size: 13px;
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+
+/* =========================================================
+   CHAT WINDOW
+   ========================================================= */
+
+.phone {
+  position: fixed;
+
+  right: 24px;
+  bottom: 24px;
+
+  width: 360px;
+  height: 520px;
+
+  background: var(--white);
+
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+
+  transition:
+    width 0.2s ease,
+    height 0.2s ease,
+    border-radius 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+/* =========================================================
+   MINIMIZED
+   ========================================================= */
+
+.phone.minimized {
+  width: 64px;
+  height: 64px;
+
+  border-radius: 50%;
+
+  right: 24px;
+  bottom: 24px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.18);
+}
+
+.phone.minimized .chat-content {
+  display: none;
+}
+
+.chat-launcher {
+  display: none;
+
+  width: 100%;
+  height: 100%;
+
+  align-items: center;
+  justify-content: center;
+
+  font-size: 25px;
+}
+
+.phone.minimized .chat-launcher {
+  display: flex;
+}
+
+
+.chat-launcher {
+  position: relative;
+}
+
+.unread-badge {
+  display: none;
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.unread-badge.active {
+  display: block;
+}
+
+
+/* =========================================================
+   CHAT CONTENT WRAPPER (needed so children can size/scroll correctly)
+   ========================================================= */
+
+.chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   SCREENS
+   ========================================================= */
+
+.screen {
+  display: none;
+
+  flex-direction: column;
+
+  height: 100%;
+  min-height: 0;
+}
+
+.screen.active {
+  display: flex;
+}
+
+.pad {
+  padding: 28px 22px;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.header {
+  height: 58px;
+
+  padding: 8px 10px 8px 12px;
+
+  border-bottom: 1px solid var(--line);
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  flex-shrink: 0;
+
+  background: #ffffff;
+}
+
+.header-left {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  min-width: 0;
+}
+
+.header-avatar {
+  width: 34px;
+  height: 34px;
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 600;
+
+  font-size: 13px;
+
+  flex-shrink: 0;
+}
+
+.header .name {
+  font-size: 14px;
+
+  font-weight: 600;
+
+  line-height: 18px;
+
+  letter-spacing: 0;
+}
+
+.status {
+  font-size: 11px;
+
+  line-height: 14px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  color: #70757a;
+
+  margin-top: 0;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #b8bdc5;
+
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background: var(--online);
+
+  box-shadow:
+    0 0 0 2px rgba(53, 199, 89, 0.12);
+}
+
+
+/* =========================================================
+   HEADER BUTTONS
+   ========================================================= */
+
+.header-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 2px;
+}
+
+.header-btn {
+  width: 30px;
+  height: 30px;
+
+  border: none;
+
+  background: transparent;
+
+  color: #555;
+
+  border-radius: 4px;
+
+  cursor: pointer;
+
+  font-size: 16px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+}
+
+.header-btn:hover {
+  background: #f3f3f3;
+
+  color: #222;
+}
+
+.clear-btn:hover {
+  color: var(--danger);
+}
+
+
+/* =========================================================
+   NOTICE
+   ========================================================= */
+
+.notice {
+  font-size: 10px;
+
+  color: #777;
+
+  text-align: center;
+
+  padding: 5px 10px;
+
+  background: #fafafa;
+
+  border-bottom: 1px solid var(--line);
+
+  line-height: 14px;
+
+  flex-shrink: 0;
+}
+
+.notice.error {
+  color: var(--danger);
+
+  background: #fff7f7;
+}
+
+
+/* =========================================================
+   MESSAGES
+   ========================================================= */
+
+.messages {
+  flex: 1 1 auto;
+
+  overflow-y: auto;
+
+  min-height: 0;
+
+  padding: 12px 10px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 12px;
+
+  background: #ffffff;
+}
+
+.messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: #bdbdbd;
+
+  border-radius: 6px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* =========================================================
+   MESSAGE ROW
+   ========================================================= */
+
+.row {
+  display: flex;
+
+  max-width: 85%;
+
+  flex-direction: column;
+}
+
+.row.mine {
+  align-self: flex-end;
+
+  align-items: flex-end;
+}
+
+.row.theirs {
+  align-self: flex-start;
+
+  align-items: flex-start;
+}
+
+.row .sender {
+  font-size: 11px;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.row .sender-time {
+  font-size: 10px;
+  font-weight: 400;
+  color: #777;
+  margin-left: 6px;
+}
+
+
+/* =========================================================
+   MESSAGE BUBBLE (plain text style, no background — like LinkedIn)
+   ========================================================= */
+
+.bubble {
+  padding: 0;
+
+  border-radius: 0;
+
+  font-size: 13px;
+
+  font-weight: 400;
+
+  line-height: 18px;
+
+  word-wrap: break-word;
+
+  letter-spacing: 0;
+
+  box-shadow: none;
+
+  background: transparent;
+
+  color: var(--text);
+
+  max-width: 100%;
+}
+
+.row.mine .bubble {
+  background: transparent;
+
+  color: var(--text);
+
+  text-align: right;
+}
+
+.row.theirs .bubble {
+  background: transparent;
+
+  color: var(--text);
+
+  text-align: left;
+}
+
+
+/* =========================================================
+   EMPTY MESSAGE
+   ========================================================= */
+
+.empty {
+  margin: auto;
+
+  text-align: center;
+
+  color: #777;
+
+  font-size: 12px;
+
+  padding: 0 30px;
+
+  line-height: 18px;
+}
+
+
+/* =========================================================
+   IMAGE (shown as a simple compact thumbnail icon in the chat,
+   click opens the full image in a popup/lightbox)
+   ========================================================= */
+
+.image-thumb {
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 6px 9px;
+
+  border: 1px solid var(--line);
+
+  border-radius: 6px;
+
+  background: #f7f7f7;
+
+  cursor: pointer;
+
+  margin-top: 2px;
+
+  max-width: 180px;
+}
+
+.image-thumb:hover {
+  background: #f0f0f0;
+
+  border-color: #cfcfcf;
+}
+
+.image-thumb .thumb-icon {
+  width: 22px;
+  height: 22px;
+
+  border-radius: 4px;
+
+  object-fit: cover;
+
+  flex-shrink: 0;
+}
+
+.image-thumb .thumb-label {
+  font-size: 11px;
+
+  color: #555;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.bubble .caption {
+  margin-top: 4px;
+}
+
+
+/* =========================================================
+   IMAGE LIGHTBOX / POPUP
+   ========================================================= */
+
+.lightbox-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.75);
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  z-index: 200;
+}
+
+.lightbox-overlay.active {
+  display: flex;
+}
+
+.lightbox-overlay img {
+  max-width: 100%;
+  max-height: 100%;
+
+  border-radius: 6px;
+
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.lightbox-close {
+  position: absolute;
+
+  top: 10px;
+  right: 10px;
+
+  width: 30px;
+  height: 30px;
+
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.9);
+
+  border: none;
+
+  color: #242424;
+
+  font-size: 15px;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* =========================================================
+   COMPOSER
+   ========================================================= */
+
+.composer {
+  display: flex;
+
+  gap: 5px;
+
+  padding: 8px 9px;
+
+  border-top: 1px solid var(--line);
+
+  background: #ffffff;
+
+  flex-shrink: 0;
+
+  position: relative;
+
+  align-items: center;
+}
+
+
+/* =========================================================
+   COMPOSER ICON BUTTON
+   ========================================================= */
+
+.icon-btn {
+  background: transparent;
+
+  border: none;
+
+  color: #555;
+
+  width: 30px;
+  height: 30px;
+
+  border-radius: 4px;
+
+  font-size: 16px;
+
+  cursor: pointer;
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: #f3f3f3;
+
+  color: #222;
+}
+
+
+/* =========================================================
+   MESSAGE INPUT
+   ========================================================= */
+
+.composer input[type="text"] {
+  flex: 1;
+
+  background: #f7f7f7;
+
+  border: 1px solid #dedede;
+
+  color: #242424;
+
+  border-radius: 4px;
+
+  padding: 7px 10px;
+
+  font-family:
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  font-size: 13px;
+
+  line-height: 18px;
+
+  outline: none;
+
+  min-width: 0;
+
+  height: 34px;
+}
+
+.composer input[type="text"]::placeholder {
+  color: #777;
+
+  font-size: 13px;
+}
+
+.composer input[type="text"]:focus {
+  border-color: #b8b8b8;
+
+  background: #ffffff;
+}
+
+
+/* =========================================================
+   SEND BUTTON
+   ========================================================= */
+
+.composer button#sendBtn {
+  background: var(--accent);
+
+  color: white;
+
+  border: none;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 4px;
+
+  font-size: 14px;
+
+  cursor: pointer;
+
+  flex-shrink: 0;
+}
+
+.composer button#sendBtn:hover {
+  background: var(--accent-dark);
+}
+
+.composer button#sendBtn:disabled {
+  opacity: 0.4;
+
+  cursor: default;
+}
+
+
+/* =========================================================
+   SWITCH USER
+   ========================================================= */
+
+.switch-link {
+  font-size: 10px;
+
+  color: #888;
+
+  text-align: center;
+
+  padding: 4px 0 6px;
+
+  cursor: pointer;
+
+  flex-shrink: 0;
+
+  background: white;
+}
+
+.switch-link:hover {
+  color: var(--accent);
+}
+
+
+/* =========================================================
+   EMOJI PANEL
+   ========================================================= */
+
+.emoji-panel {
+  position: absolute;
+
+  bottom: 100%;
+
+  left: 8px;
+  right: 8px;
+
+  margin-bottom: 6px;
+
+  background: white;
+
+  border: 1px solid #ddd;
+
+  border-radius: 8px;
+
+  padding: 7px;
+
+  display: none;
+
+  grid-template-columns: repeat(8, 1fr);
+
+  gap: 2px;
+
+  max-height: 160px;
+
+  overflow-y: auto;
+
+  box-shadow:
+    0 5px 20px rgba(0, 0, 0, 0.15);
+
+  z-index: 20;
+}
+
+.emoji-panel.active {
+  display: grid;
+}
+
+.emoji-panel button {
+  background: transparent;
+
+  border: none;
+
+  font-size: 18px;
+
+  padding: 5px;
+
+  cursor: pointer;
+
+  border-radius: 4px;
+
+  line-height: 1;
+}
+
+.emoji-panel button:hover {
+  background: #f3f3f3;
+}
+
+
+/* =========================================================
+   ATTACHMENT PREVIEW
+   ========================================================= */
+
+.attach-preview {
+  display: none;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 6px 10px 0;
+
+  background: var(--white);
+
+  flex-shrink: 0;
+}
+
+.attach-preview.active {
+  display: flex;
+}
+
+.attach-preview img {
+  width: 40px;
+  height: 40px;
+
+  object-fit: cover;
+
+  border-radius: 6px;
+
+  border: 1px solid var(--line);
+}
+
+.attach-preview .info {
+  flex: 1;
+
+  font-size: 11px;
+
+  color: #777;
+}
+
+.attach-preview .remove {
+  background: #f3f3f3;
+
+  border: 1px solid #ddd;
+
+  color: #555;
+
+  width: 24px;
+  height: 24px;
+
+  border-radius: 50%;
+
+  cursor: pointer;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   SELECT SCREEN
+   ========================================================= */
+
+.select-header {
+  margin-bottom: 24px;
+}
+
+.logo {
+  width: 44px;
+  height: 44px;
+
+  border-radius: 10px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  background: var(--accent-light);
+
+  color: var(--accent);
+
+  font-size: 21px;
+
+  margin-bottom: 15px;
+}
+
+h1 {
+  font-size: 20px;
+
+  margin: 0 0 6px;
+
+  font-weight: 600;
+
+  letter-spacing: -0.1px;
+}
+
+p.sub {
+  font-size: 12px;
+
+  color: #777;
+
+  line-height: 18px;
+
+  margin: 0;
+}
+
+.who-btn {
+  width: 100%;
+
+  background: white;
+
+  border: 1px solid #ddd;
+
+  color: #242424;
+
+  padding: 12px;
+
+  border-radius: 8px;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  margin-bottom: 8px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+}
+
+.who-btn:hover {
+  border-color: var(--accent);
+
+  background: #fafcff;
+}
+
+.who-avatar {
+  width: 38px;
+  height: 38px;
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 600;
+
+  font-size: 14px;
+
+  flex-shrink: 0;
+}
+
+.who-avatar.tom {
+  background: #e5f8f1;
+
+  color: #178b68;
+}
+
+.who-avatar.jerry {
+  background: #fff0ec;
+
+  color: #df6b52;
+}
+
+.who-btn .t {
+  font-size: 13px;
+
+  font-weight: 600;
+}
+
+.who-btn .d {
+  font-size: 11px;
+
+  color: #777;
+
+  margin-top: 2px;
+}
+
+
+/* =========================================================
+   CONFIRM DIALOG
+   ========================================================= */
+
+.confirm-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  background: rgba(255, 255, 255, 0.75);
+
+  backdrop-filter: blur(4px);
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 25px;
+
+  z-index: 100;
+}
+
+.confirm-overlay.active {
+  display: flex;
+}
+
+.confirm-box {
+  background: white;
+
+  border: 1px solid #ddd;
+
+  border-radius: 8px;
+
+  padding: 18px;
+
+  width: 100%;
+
+  text-align: center;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.confirm-box p {
+  font-size: 12px;
+
+  color: #242424;
+
+  line-height: 18px;
+
+  margin: 0 0 14px;
+}
+
+.confirm-actions {
+  display: flex;
+
+  gap: 7px;
+}
+
+.confirm-actions button {
+  flex: 1;
+
+  padding: 8px;
+
+  border-radius: 5px;
+
+  font-size: 12px;
+
+  cursor: pointer;
+
+  border: none;
+}
+
+.confirm-cancel {
+  background: #f3f3f3;
+
+  color: #242424;
+}
+
+.confirm-yes {
+  background: var(--danger);
+
+  color: white;
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  body {
+    background: white;
+  }
+
+  .phone {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+
+    width: auto;
+
+    height: calc(100vh - 20px);
+
+    border-radius: 8px;
+  }
+
+  .phone.minimized {
+    left: auto;
+
+    width: 60px;
+    height: 60px;
+
+    right: 18px;
+    bottom: 18px;
+
+    border-radius: 50%;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="phone minimized" id="chatWindow">
+
+    <!-- Minimized launcher -->
+    <div class="chat-launcher" id="chatLauncher">
+      💬
+      <span class="unread-badge" id="unreadBadge">0</span>
+    </div>
+  
+    <div class="chat-content">
+  
+      <!-- =====================================================
+           USER SELECT SCREEN
+           ===================================================== -->
+  
+      <div class="screen active pad" id="screen-select">
+  
+        <div class="select-header">
+  
+          <div class="logo">
+            💬
+          </div>
+  
+          <h1>Just Us</h1>
+  
+          <p class="sub">
+            A private little chat for the two of you.
+            Pick who you are on this device.
+          </p>
+  
+        </div>
+  
+        <div class="who-btn" data-name="Tom">
+  
+          <div class="who-avatar tom">
+            T
+          </div>
+  
+          <div>
+            <div class="t">I'm Tom</div>
+            <div class="d">Enter as Tom</div>
+          </div>
+  
+        </div>
+  
+        <div class="who-btn" data-name="Jerry">
+  
+          <div class="who-avatar jerry">
+            J
+          </div>
+  
+          <div>
+            <div class="t">I'm Jerry</div>
+            <div class="d">Enter as Jerry</div>
+          </div>
+  
+        </div>
+  
+      </div>
+  
+  
+      <!-- =====================================================
+           CHAT SCREEN
+           ===================================================== -->
+  
+      <div class="screen" id="screen-chat">
+  
+        <!-- Header -->
+  
+        <div class="header">
+  
+          <div class="header-left">
+  
+            <div class="header-avatar" id="headerAvatar">
+              ?
+            </div>
+  
+            <div>
+  
+              <div class="name" id="headerName">
+                —
+              </div>
+  
+              <div class="status">
+  
+                <div
+                  class="status-dot"
+                  id="statusDot">
+                </div>
+  
+                <span id="statusText">
+                  Offline
+                </span>
+  
+              </div>
+  
+            </div>
+  
+          </div>
+  
+  
+          <div class="header-actions">
+  
+            <button
+              class="header-btn clear-btn"
+              id="clearBtn"
+              title="Clear chat">
+              🗑
+            </button>
+  
+            <button
+              class="header-btn"
+              id="minimizeBtn"
+              title="Minimize">
+              −
+            </button>
+  
+          </div>
+  
+        </div>
+  
+  
+        <!-- Notice -->
+  
+        <div
+          class="notice"
+          id="notice">
+  
+          You're signed in.
+  
+        </div>
+  
+  
+        <!-- Messages -->
+  
+        <div
+          class="messages"
+          id="messages">
+  
+          <div class="empty">
+            No messages yet.<br>
+            Say hi 👋
+          </div>
+  
+        </div>
+  
+  
+        <!-- Attachment Preview -->
+  
+        <div
+          class="attach-preview"
+          id="attachPreview">
+  
+          <img
+            id="attachPreviewImg"
+            src=""
+            alt="Attached image preview">
+  
+          <div class="info">
+            Image attached
+          </div>
+  
+          <button
+            class="remove"
+            id="removeAttach">
+            ✕
+          </button>
+  
+        </div>
+  
+  
+        <!-- Composer -->
+  
+        <div class="composer">
+  
+          <!-- Emoji popup -->
+  
+          <div
+            class="emoji-panel"
+            id="emojiPanel">
+          </div>
+  
+  
+          <!-- Emoji -->
+  
+          <button
+            class="icon-btn"
+            id="emojiBtn"
+            title="Emoji"
+            type="button">
+            🙂
+          </button>
+  
+  
+          <!-- Attach -->
+  
+          <button
+            class="icon-btn"
+            id="attachBtn"
+            title="Attach image"
+            type="button">
+            📎
+          </button>
+  
+  
+          <input
+            type="file"
+            id="fileInput"
+            accept="image/*"
+            style="display:none;">
+  
+  
+          <!-- Message input -->
+  
+          <input
+            type="text"
+            id="input"
+            placeholder="Type a message…"
+            maxlength="1000">
+  
+  
+          <!-- Send -->
+  
+          <button
+            id="sendBtn"
+            title="Send">
+            ➤
+          </button>
+  
+        </div>
+  
+  
+        <!-- Switch -->
+  
+        <div
+          class="switch-link"
+          id="switchLink">
+  
+          Not you? Switch user
+  
+        </div>
+  
+      </div>
+  
+  
+    </div>
+  
+  
+    <!-- =======================================================
+         CONFIRM CLEAR
+         ======================================================= -->
+  
+    <div
+      class="confirm-overlay"
+      id="confirmOverlay">
+  
+      <div class="confirm-box">
+  
+        <p>
+          Clear the chat on your side?
+          Messages will remain for the other person
+          until they clear them too.
+        </p>
+  
+        <div class="confirm-actions">
+  
+          <button
+            class="confirm-cancel"
+            id="confirmCancel">
+            Cancel
+          </button>
+  
+          <button
+            class="confirm-yes"
+            id="confirmYes">
+            Clear
+          </button>
+  
+        </div>
+  
+      </div>
+  
+    </div>
+  
+  
+    <!-- =======================================================
+         IMAGE LIGHTBOX / POPUP
+         ======================================================= -->
+  
+    <div
+      class="lightbox-overlay"
+      id="lightboxOverlay">
+  
+      <button
+        class="lightbox-close"
+        id="lightboxClose">
+        ✕
+      </button>
+  
+      <img
+        id="lightboxImg"
+        src=""
+        alt="Full size image">
+  
+    </div>
+  
+  </div>
+
+<script>
+  // ---- Point this at your deployed server ----
+  // While testing locally this works as-is. After you deploy the server
+  // (Render/Railway/Glitch/etc), replace this with that server's URL,
+  // e.g. 'https://just-us-server.onrender.com'
+  const API_BASE = "";
+
+  const NAME_KEY = 'just-us-my-name';
+  const ONLINE_THRESHOLD_MS = 8000;
+  const TICK_MS = 3000;
+  const VALID_NAMES = ['Tom', 'Jerry'];
+
+  let myName = null;
+  let otherName = null;
+  let tickTimer = null;
+  let pendingImage = null; // { filename, previewUrl } once uploaded, before sending
+
+  const ORIGINAL_TITLE = document.title;
+  let unreadCount = 0;
+  let lastSeenMessageKey = null;
+  let unreadInitialized = false;
+
+  const screenSelect = document.getElementById('screen-select');
+  const screenChat = document.getElementById('screen-chat');
+  const messagesEl = document.getElementById('messages');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const noticeEl = document.getElementById('notice');
+  const emojiBtn = document.getElementById('emojiBtn');
+  const emojiPanel = document.getElementById('emojiPanel');
+  const attachBtn = document.getElementById('attachBtn');
+  const fileInput = document.getElementById('fileInput');
+  const attachPreview = document.getElementById('attachPreview');
+  const attachPreviewImg = document.getElementById('attachPreviewImg');
+  const removeAttach = document.getElementById('removeAttach');
+  const lightboxOverlay = document.getElementById('lightboxOverlay');
+  const lightboxImg = document.getElementById('lightboxImg');
+  const lightboxClose = document.getElementById('lightboxClose');
+  const unreadBadge = document.getElementById('unreadBadge');
+
+  // ---- Image lightbox / popup ----
+  function openLightbox(src) {
+    lightboxImg.src = src;
+    lightboxOverlay.classList.add('active');
+  }
+  function closeLightbox() {
+    lightboxOverlay.classList.remove('active');
+    lightboxImg.src = '';
+  }
+  lightboxClose.addEventListener('click', closeLightbox);
+  lightboxOverlay.addEventListener('click', (e) => {
+    if (e.target === lightboxOverlay) closeLightbox();
+  });
+
+  // ---- Emoji picker ----
+  const EMOJIS = ['😀','😂','🥹','😍','😘','😜','🤔','😎','🙄','😭',
+                   '😡','🥳','😴','🤗','🙃','😇','🤯','🥰','😅','🫠',
+                   '👍','👎','🙏','👏','🤝','💪','🔥','✨','🎉','💯',
+                   '❤️','🧡','💛','💚','💙','💜','🤍','🖤','💔','💕',
+                   '😺','🐶','🌸','⭐','☀️','🌙','☕','🍕','🎮','⚽'];
+  EMOJIS.forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e;
+    b.addEventListener('click', () => {
+      const start = inputEl.selectionStart ?? inputEl.value.length;
+      const end = inputEl.selectionEnd ?? inputEl.value.length;
+      inputEl.value = inputEl.value.slice(0, start) + e + inputEl.value.slice(end);
+      inputEl.focus();
+      inputEl.selectionStart = inputEl.selectionEnd = start + e.length;
+    });
+    emojiPanel.appendChild(b);
+  });
+  emojiBtn.addEventListener('click', () => emojiPanel.classList.toggle('active'));
+  document.addEventListener('click', (e) => {
+    if (!emojiPanel.contains(e.target) && e.target !== emojiBtn) {
+      emojiPanel.classList.remove('active');
+    }
+  });
+
+  // ---- Image attach ----
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setConnectionError('Please choose an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setConnectionError('Image is larger than 5MB.'); return; }
+
+    attachBtn.disabled = true;
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const res = await fetch(API_BASE + '/api/upload', { method: 'POST', body: form });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      pendingImage = { filename: data.filename, previewUrl: API_BASE + '/images/' + data.filename };
+      attachPreviewImg.src = pendingImage.previewUrl;
+      attachPreview.classList.add('active');
+      clearConnectionError();
+    } catch (e) {
+      setConnectionError("Couldn't upload the image — try again.");
+    }
+    attachBtn.disabled = false;
+  });
+  removeAttach.addEventListener('click', () => {
+    pendingImage = null;
+    attachPreview.classList.remove('active');
+    attachPreviewImg.src = '';
+  });
+
+  function otherOf(name) { return name === 'Tom' ? 'Jerry' : 'Tom'; }
+
+  async function api(path, options) {
+    const res = await fetch(API_BASE + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options
+    });
+    if (!res.ok) throw new Error('Request failed: ' + res.status);
+    return res.json();
+  }
+
+  function setConnectionError(msg) {
+    noticeEl.textContent = msg;
+    noticeEl.classList.add('error');
+  }
+  function clearConnectionError() {
+    noticeEl.classList.remove('error');
+  }
+
+  // Local device just remembers WHICH of the two fixed users you are —
+  // this is only a convenience, not where messages live.
+  function getMyStoredName() {
+    const v = localStorage.getItem(NAME_KEY);
+    return VALID_NAMES.includes(v) ? v : null;
+  }
+  function saveMyName(name) { localStorage.setItem(NAME_KEY, name); }
+  function clearMyStoredName() { localStorage.removeItem(NAME_KEY); }
+
+  function enterChat() {
+    otherName = otherOf(myName);
+    screenSelect.classList.remove('active');
+    screenChat.classList.add('active');
+    const avatar = document.getElementById('headerAvatar');
+    avatar.textContent = otherName[0];
+    avatar.className = 'header-avatar ' + (otherName === 'Tom' ? 'who-avatar tom' : 'who-avatar jerry');
+    document.getElementById('headerName').textContent = otherName;
+    noticeEl.textContent = "You're signed in as " + myName + ". Messages are stored in a text file on the server until both of you clear them.";
+    startTicking();
+  }
+
+  document.querySelectorAll('.who-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      myName = btn.getAttribute('data-name');
+      saveMyName(myName);
+      enterChat();
+    });
+  });
+
+  document.getElementById('switchLink').addEventListener('click', () => {
+    if (tickTimer) clearInterval(tickTimer);
+    clearMyStoredName();
+    myName = null; otherName = null;
+    unreadInitialized = false;
+    lastSeenMessageKey = null;
+    clearUnread();
+    screenChat.classList.remove('active');
+    screenSelect.classList.add('active');
+  });
+
+
+  function formatMessageTime(m) {
+    const raw = m.createdAt ?? m.timestamp ?? m.time;
+    if (raw == null || raw === '') return '';
+
+    let date;
+    if (typeof raw === 'number') {
+      date = new Date(raw < 100000000000 ? raw * 1000 : raw);
+    } else {
+      date = new Date(raw);
+    }
+
+    if (Number.isNaN(date.getTime())) return String(raw);
+
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function messageKey(m) {
+    // Prefer a server-provided ID/timestamp if available; otherwise use a stable fallback.
+    return String(
+      m.id ??
+      m.createdAt ??
+      m.timestamp ??
+      m.time ??
+      [m.sender || '', m.text || '', m.image || ''].join('|')
+    );
+  }
+
+  function updateUnreadUI() {
+    document.title = unreadCount > 0
+      ? `(${unreadCount}) ${ORIGINAL_TITLE}`
+      : ORIGINAL_TITLE;
+
+    unreadBadge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+    unreadBadge.classList.toggle('active', unreadCount > 0);
+  }
+
+  function clearUnread() {
+    unreadCount = 0;
+    updateUnreadUI();
+  }
+
+  function trackUnreadMessages(visible) {
+    const incoming = visible.filter(m => m.sender !== myName);
+
+    // On first load, establish the current latest message without counting old history as unread.
+    if (!unreadInitialized) {
+      lastSeenMessageKey = incoming.length ? messageKey(incoming[incoming.length - 1]) : null;
+      unreadInitialized = true;
+      return;
+    }
+
+    if (!incoming.length) {
+      lastSeenMessageKey = null;
+      return;
+    }
+
+    const latestKey = messageKey(incoming[incoming.length - 1]);
+
+    if (lastSeenMessageKey === latestKey) return;
+
+    let newIncoming = [];
+    const previousIndex = incoming.findIndex(m => messageKey(m) === lastSeenMessageKey);
+
+    if (previousIndex >= 0) {
+      newIncoming = incoming.slice(previousIndex + 1);
+    } else {
+      // If the previous message is no longer present, only count the newest incoming message
+      // to avoid suddenly counting old history.
+      newIncoming = [incoming[incoming.length - 1]];
+    }
+
+    // Count unread only when the tab is not active or the chat is minimized.
+    const shouldCountUnread = document.hidden || chatWindow.classList.contains('minimized');
+
+    if (shouldCountUnread) {
+      unreadCount += newIncoming.length;
+      updateUnreadUI();
+    }
+
+    lastSeenMessageKey = latestKey;
+  }
+
+  async function renderMessages() {
+    let all;
+    try {
+      all = await api('/api/messages');
+      clearConnectionError();
+    } catch (e) {
+      setConnectionError("Can't reach the server right now.");
+      return;
+    }
+    const visible = all.filter(m => !(m.clearedBy || []).includes(myName));
+    trackUnreadMessages(visible);
+    // Preserve scroll position unless user is already at (or near) the bottom
+    const wasNearBottom = (messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight) < 40;
+    messagesEl.innerHTML = '';
+    if (visible.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'No messages yet. Say hi 👋';
+      messagesEl.appendChild(empty);
+      return;
+    }
+    visible.forEach(m => {
+      const row = document.createElement('div');
+      const mine = m.sender === myName;
+      row.className = 'row ' + (mine ? 'mine' : 'theirs');
+
+      const senderEl = document.createElement('div');
+      senderEl.className = 'sender';
+
+      const senderName = document.createElement('span');
+      senderName.textContent = m.sender;
+      senderEl.appendChild(senderName);
+
+      const senderTime = document.createElement('span');
+      senderTime.className = 'sender-time';
+      senderTime.textContent = formatMessageTime(m);
+      senderEl.appendChild(senderTime);
+
+      row.appendChild(senderEl);
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      if (m.image) {
+        const imgSrc = API_BASE + '/images/' + m.image;
+        const thumb = document.createElement('div');
+        thumb.className = 'image-thumb';
+        thumb.title = 'Click to view image';
+        const thumbIcon = document.createElement('img');
+        thumbIcon.className = 'thumb-icon';
+        thumbIcon.src = imgSrc;
+        thumbIcon.alt = 'Image';
+        thumbIcon.loading = 'lazy';
+        const label = document.createElement('span');
+        label.className = 'thumb-label';
+        label.textContent = '🖼 Photo';
+        thumb.appendChild(thumbIcon);
+        thumb.appendChild(label);
+        thumb.addEventListener('click', () => openLightbox(imgSrc));
+        bubble.appendChild(thumb);
+      }
+      if (m.text) {
+        const textEl = document.createElement('div');
+        textEl.className = m.image ? 'caption' : '';
+        textEl.textContent = m.text;
+        bubble.appendChild(textEl);
+      }
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+    });
+    if (wasNearBottom) {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text && !pendingImage) return;
+    sendBtn.disabled = true;
+    try {
+      await api('/api/messages', {
+        method: 'POST',
+        body: JSON.stringify({ sender: myName, text, image: pendingImage ? pendingImage.filename : null })
+      });
+      inputEl.value = '';
+      pendingImage = null;
+      attachPreview.classList.remove('active');
+      attachPreviewImg.src = '';
+      await renderMessages();
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    } catch (e) {
+      setConnectionError("Couldn't send — server unreachable.");
+    }
+    sendBtn.disabled = false;
+  }
+
+  async function clearMyChat() {
+    try {
+      await api('/api/clear', { method: 'POST', body: JSON.stringify({ user: myName }) });
+      await renderMessages();
+    } catch (e) {
+      setConnectionError("Couldn't clear — server unreachable.");
+    }
+  }
+
+  async function heartbeat() {
+    try {
+      await api('/api/heartbeat', { method: 'POST', body: JSON.stringify({ user: myName }) });
+      const presence = await api('/api/presence');
+      const lastSeen = presence[otherName] || 0;
+      const online = (Date.now() - lastSeen) < ONLINE_THRESHOLD_MS;
+      document.getElementById('statusDot').classList.toggle('online', online);
+      document.getElementById('statusText').textContent = online ? 'Online' : 'Offline';
+    } catch (e) { /* presence is best-effort */ }
+  }
+
+  function startTicking() {
+    heartbeat();
+    renderMessages();
+    if (tickTimer) clearInterval(tickTimer);
+    tickTimer = setInterval(() => { heartbeat(); renderMessages(); }, TICK_MS);
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  document.getElementById('clearBtn').addEventListener('click', () => confirmOverlay.classList.add('active'));
+  document.getElementById('confirmCancel').addEventListener('click', () => confirmOverlay.classList.remove('active'));
+  document.getElementById('confirmYes').addEventListener('click', async () => {
+    confirmOverlay.classList.remove('active');
+    await clearMyChat();
+  });
+
+  // ---- Minimize / restore ----
+  const chatWindow = document.getElementById('chatWindow');
+  const chatLauncher = document.getElementById('chatLauncher');
+  const minimizeBtn = document.getElementById('minimizeBtn');
+
+  // The chat starts minimized. Clicking the floating icon opens it.
+  chatLauncher.addEventListener('click', () => {
+    chatWindow.classList.remove('minimized');
+    clearUnread();
+  });
+
+  // Clicking the "-" button minimizes the chat again.
+  minimizeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    chatWindow.classList.add('minimized');
+  });
+
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !chatWindow.classList.contains('minimized')) {
+      clearUnread();
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (!chatWindow.classList.contains('minimized')) {
+      clearUnread();
+    }
+  });
+
+  (function init() {
+    const stored = getMyStoredName();
+    if (stored) { myName = stored; enterChat(); }
+  })();
+</script>
+
+</body>
+</html>
