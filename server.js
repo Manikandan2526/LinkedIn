@@ -25,7 +25,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 // ---- Daily password ----
 // Change this each day and tell the other person. Case-insensitive.
 // Today's password:
-const DAILY_PASSWORD = 'pussy';
+const DAILY_PASSWORD = 'pus';
 
 app.use('/images', express.static(IMAGES_DIR));
 
@@ -69,7 +69,13 @@ async function readJsonFile(file, fallback) {
   }
 }
 async function writeJsonFile(file, data) {
-  await fs.writeFile(file, JSON.stringify(data, null, 2));
+  // Write to a temp file in the same directory, then rename it into place.
+  // A rename is atomic on the same filesystem, so a concurrent read of
+  // `file` can never observe a half-written / truncated JSON file
+  // (which is what caused the chat to sometimes render as "empty").
+  const tmpFile = file + '.tmp-' + crypto.randomUUID();
+  await fs.writeFile(tmpFile, JSON.stringify(data, null, 2));
+  await fs.rename(tmpFile, file);
 }
 
 function isValidUser(u) { return VALID_USERS.includes(u); }
