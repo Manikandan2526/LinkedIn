@@ -1,6 +1,6 @@
 // Just Us — tiny backend
 // Stores everything in plain text (JSON) files on disk. No database.
-// Two files: data/messages.txt and data/presence.txt
+// Files: data/messages.txt, data/presence.txt, data/seen.txt
 
 const express = require('express');
 const cors = require('cors');
@@ -18,6 +18,7 @@ const DATA_DIR = path.join(__dirname, 'data');
 const IMAGES_DIR = path.join(DATA_DIR, 'images');
 const MSG_FILE = path.join(DATA_DIR, 'messages.txt');
 const PRESENCE_FILE = path.join(DATA_DIR, 'presence.txt');
+const SEEN_FILE = path.join(DATA_DIR, 'seen.txt');
 const VALID_USERS = ['Tom', 'Jerry'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -28,6 +29,7 @@ async function ensureFiles() {
   await fs.mkdir(IMAGES_DIR, { recursive: true });
   try { await fs.access(MSG_FILE); } catch { await fs.writeFile(MSG_FILE, '[]'); }
   try { await fs.access(PRESENCE_FILE); } catch { await fs.writeFile(PRESENCE_FILE, '{}'); }
+  try { await fs.access(SEEN_FILE); } catch { await fs.writeFile(SEEN_FILE, '{}'); }
 }
 
 const upload = multer({
@@ -147,6 +149,28 @@ app.post('/api/heartbeat', async (req, res) => {
 app.get('/api/presence', async (req, res) => {
   const presence = await readJsonFile(PRESENCE_FILE, {});
   res.json(presence);
+});
+
+// ---- Seen / read receipts ----
+// Records, per user, the id of the newest message they've viewed and when.
+// { "Tom": { "lastSeenId": "...", "seenAt": 1234567890 }, "Jerry": {...} }
+
+app.post('/api/seen', async (req, res) => {
+  const { user, lastSeenId } = req.body || {};
+  if (!isValidUser(user) || !lastSeenId) {
+    return res.status(400).json({ error: 'user must be Tom or Jerry, and lastSeenId is required' });
+  }
+  await queued(async () => {
+    const seen = await readJsonFile(SEEN_FILE, {});
+    seen[user] = { lastSeenId, seenAt: Date.now() };
+    await writeJsonFile(SEEN_FILE, seen);
+  });
+  res.json({ ok: true });
+});
+
+app.get('/api/seen', async (req, res) => {
+  const seen = await readJsonFile(SEEN_FILE, {});
+  res.json(seen);
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
