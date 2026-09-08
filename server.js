@@ -25,7 +25,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 // ---- Daily password ----
 // Change this each day and tell the other person. Case-insensitive.
 // Today's password:
-const DAILY_PASSWORD = 'pussy';
+const DAILY_PASSWORD = 'pus';
 
 app.use('/images', express.static(IMAGES_DIR));
 
@@ -82,7 +82,7 @@ app.get('/api/messages', async (req, res) => {
 });
 
 app.post('/api/messages', async (req, res) => {
-  const { sender, text, image } = req.body || {};
+  const { sender, text, image, replyTo } = req.body || {};
   const cleanText = typeof text === 'string' ? text.trim().slice(0, 1000) : '';
   const cleanImage = typeof image === 'string' ? image : null;
   if (!isValidUser(sender) || (!cleanText && !cleanImage)) {
@@ -90,17 +90,61 @@ app.post('/api/messages', async (req, res) => {
   }
   await queued(async () => {
     const all = await readJsonFile(MSG_FILE, []);
+
+    // Look up the message being replied to server-side and store a small,
+    // frozen snapshot of it — so the quote still makes sense even if the
+    // original is later edited or cleared.
+    let replySnapshot = null;
+    if (typeof replyTo === 'string' && replyTo) {
+      const original = all.find(m => m.id === replyTo);
+      if (original) {
+        replySnapshot = {
+          id: original.id,
+          sender: original.sender,
+          text: (original.text || '').slice(0, 140),
+          hasImage: !!original.image
+        };
+      }
+    }
+
     all.push({
       id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       sender,
       text: cleanText,
       image: cleanImage, // filename under /images/, or null
       ts: Date.now(),
+      edited: false,
+      editedAt: null,
+      replyTo: replySnapshot,
       clearedBy: []
     });
     await writeJsonFile(MSG_FILE, all);
   });
   res.json({ ok: true });
+});
+
+// Edit a message's text. Only the original sender may edit their own message.
+app.post('/api/messages/edit', async (req, res) => {
+  const { id, sender, text } = req.body || {};
+  const cleanText = typeof text === 'string' ? text.trim().slice(0, 1000) : '';
+  if (!isValidUser(sender) || !id) {
+    return res.status(400).json({ error: 'sender must be Tom or Jerry, and id is required' });
+  }
+  let result = { ok: false, error: 'Message not found' };
+  await queued(async () => {
+    const all = await readJsonFile(MSG_FILE, []);
+    const msg = all.find(m => m.id === id);
+    if (!msg) return;
+    if (msg.sender !== sender) { result = { ok: false, error: 'You can only edit your own messages' }; return; }
+    if (!cleanText && !msg.image) { result = { ok: false, error: 'Message text cannot be empty' }; return; }
+    msg.text = cleanText;
+    msg.edited = true;
+    msg.editedAt = Date.now();
+    await writeJsonFile(MSG_FILE, all);
+    result = { ok: true };
+  });
+  if (!result.ok) return res.status(400).json(result);
+  res.json(result);
 });
 
 // Upload an image, get back a filename to attach to a message.
