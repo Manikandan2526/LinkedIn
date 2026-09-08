@@ -499,6 +499,54 @@ body {
   margin-left: 0;
 }
 
+.row .edited-tag {
+  font-size: 9px;
+  font-weight: 400;
+  font-style: italic;
+  color: #999;
+  white-space: nowrap;
+}
+
+
+/* ---- Row hover/tap actions: Reply, Edit ---- */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.row:hover .row-actions,
+.row.actions-open .row-actions {
+  opacity: 1;
+}
+
+.row-action-btn {
+  width: 18px;
+  height: 18px;
+
+  border: none;
+  background: transparent;
+  color: #8a8f96;
+
+  font-size: 11px;
+
+  border-radius: 3px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.row-action-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
 
 /* =========================================================
    MESSAGE BUBBLE (plain text style, no background — like LinkedIn)
@@ -561,6 +609,116 @@ body {
 .seen-indicator .seen-check {
   font-size: 10px;
   line-height: 1;
+}
+
+
+/* ---- Quoted message (reply) shown inside a bubble ---- */
+.quote-box {
+  display: block;
+
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+
+  padding: 4px 8px;
+
+  border-radius: 4px;
+
+  margin-bottom: 4px;
+
+  max-width: 220px;
+
+  cursor: pointer;
+}
+
+.quote-box .quote-sender {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-dark);
+
+  line-height: 14px;
+}
+
+.quote-box .quote-text {
+  font-size: 11px;
+  color: #666;
+
+  line-height: 14px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row.mine .quote-box {
+  text-align: left;
+  margin-left: auto;
+}
+
+
+/* ---- Reply / edit banner above the composer ---- */
+.compose-banner {
+  display: none;
+
+  align-items: center;
+  gap: 8px;
+
+  padding: 7px 10px;
+
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+
+  flex-shrink: 0;
+}
+
+.compose-banner.active {
+  display: flex;
+}
+
+.compose-banner .bar {
+  width: 3px;
+  align-self: stretch;
+  background: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.compose-banner .banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.compose-banner .banner-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  line-height: 15px;
+}
+
+.compose-banner .banner-text {
+  font-size: 11px;
+  color: #777;
+  line-height: 15px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compose-banner .banner-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.compose-banner .banner-close:hover {
+  background: #e9e9e9;
+  color: #333;
 }
 
 
@@ -1357,7 +1515,7 @@ p.sub {
             💬
           </div>
   
-          <h1>LinkedIn</h1>
+          <h1>Just Us</h1>
   
           <p class="sub">
             A private little chat for the two of you.
@@ -1407,10 +1565,10 @@ p.sub {
             🔒
           </div>
 
-          <h1>Enter password</h1>
+          <h1>Enter today's password</h1>
 
           <p class="sub">
-            Enter password to continue as
+            Ask the other person for today's password to continue as
             <strong id="pwWhoName">—</strong>.
           </p>
 
@@ -1525,6 +1683,29 @@ p.sub {
             Say hi 👋
           </div>
   
+        </div>
+
+
+        <!-- Reply banner -->
+
+        <div class="compose-banner" id="replyBanner">
+          <div class="bar"></div>
+          <div class="banner-body">
+            <div class="banner-title">Replying to <span id="replyBannerName">—</span></div>
+            <div class="banner-text" id="replyBannerText"></div>
+          </div>
+          <button class="banner-close" id="replyBannerClose" title="Cancel reply">✕</button>
+        </div>
+
+
+        <!-- Edit banner -->
+
+        <div class="compose-banner" id="editBanner">
+          <div class="bar"></div>
+          <div class="banner-body">
+            <div class="banner-title">Editing message</div>
+          </div>
+          <button class="banner-close" id="editBannerClose" title="Cancel edit">✕</button>
         </div>
   
   
@@ -1709,6 +1890,9 @@ p.sub {
   let tickTimer = null;
   let pendingImage = null; // { filename, previewUrl } once uploaded, before sending
   let lastMarkedSeenId = null; // avoid spamming /api/seen with the same id
+  let replyingTo = null; // { id, sender, text, hasImage } snapshot of the message being replied to
+  let editingMessage = null; // the full message object currently being edited
+  let latestMessagesById = {}; // id -> message, refreshed on every render (used to scroll to quoted originals)
 
   const ORIGINAL_TITLE = document.title;
   let unreadCount = 0;
@@ -1738,6 +1922,12 @@ p.sub {
   const lightboxImg = document.getElementById('lightboxImg');
   const lightboxClose = document.getElementById('lightboxClose');
   const unreadBadge = document.getElementById('unreadBadge');
+  const replyBanner = document.getElementById('replyBanner');
+  const replyBannerName = document.getElementById('replyBannerName');
+  const replyBannerText = document.getElementById('replyBannerText');
+  const replyBannerClose = document.getElementById('replyBannerClose');
+  const editBanner = document.getElementById('editBanner');
+  const editBannerClose = document.getElementById('editBannerClose');
 
   // ---- Image lightbox / popup ----
   function openLightbox(src) {
@@ -1963,6 +2153,8 @@ p.sub {
     unreadInitialized = false;
     lastSeenMessageKey = null;
     lastMarkedSeenId = null;
+    cancelReply();
+    cancelEdit();
     clearUnread();
     screenChat.classList.remove('active');
     screenSelect.classList.add('active');
@@ -2114,10 +2306,14 @@ p.sub {
     const showSeenOnLast = lastMsg && lastMsg.sender === myName &&
       otherSeen && otherSeen.lastSeenId === lastMsg.id;
 
+    latestMessagesById = {};
+    visible.forEach(m => { latestMessagesById[m.id] = m; });
+
     visible.forEach(m => {
       const row = document.createElement('div');
       const mine = m.sender === myName;
       row.className = 'row ' + (mine ? 'mine' : 'theirs');
+      row.id = 'msg-' + m.id;
 
       const senderEl = document.createElement('div');
       senderEl.className = 'sender';
@@ -2131,10 +2327,68 @@ p.sub {
       senderTime.textContent = formatMessageTime(m);
       senderEl.appendChild(senderTime);
 
+      if (m.edited) {
+        const editedTag = document.createElement('span');
+        editedTag.className = 'edited-tag';
+        editedTag.textContent = '(edited)';
+        senderEl.appendChild(editedTag);
+      }
+
+      // Reply / Edit actions — reply is always available, edit only on your own messages.
+      const actionsEl = document.createElement('div');
+      actionsEl.className = 'row-actions';
+
+      const replyBtn = document.createElement('button');
+      replyBtn.type = 'button';
+      replyBtn.className = 'row-action-btn';
+      replyBtn.title = 'Reply';
+      replyBtn.textContent = '↩';
+      replyBtn.addEventListener('click', (e) => { e.stopPropagation(); startReply(m); });
+      actionsEl.appendChild(replyBtn);
+
+      if (mine) {
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'row-action-btn';
+        editBtn.title = 'Edit';
+        editBtn.textContent = '✎';
+        editBtn.addEventListener('click', (e) => { e.stopPropagation(); startEdit(m); });
+        actionsEl.appendChild(editBtn);
+      }
+
+      senderEl.appendChild(actionsEl);
       row.appendChild(senderEl);
+
+      // Tapping a row toggles its action buttons visible (useful on touch devices).
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.row.actions-open').forEach(r => {
+          if (r !== row) r.classList.remove('actions-open');
+        });
+        row.classList.toggle('actions-open');
+      });
 
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
+
+      if (m.replyTo) {
+        const quote = document.createElement('div');
+        quote.className = 'quote-box';
+        const qSender = document.createElement('div');
+        qSender.className = 'quote-sender';
+        qSender.textContent = m.replyTo.sender;
+        const qText = document.createElement('div');
+        qText.className = 'quote-text';
+        qText.textContent = m.replyTo.text || (m.replyTo.hasImage ? '🖼 Photo' : '');
+        quote.appendChild(qSender);
+        quote.appendChild(qText);
+        quote.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const target = document.getElementById('msg-' + m.replyTo.id);
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        bubble.appendChild(quote);
+      }
+
       if (m.image) {
         const imgSrc = API_BASE + '/images/' + m.image;
         const thumb = document.createElement('div');
@@ -2150,7 +2404,7 @@ p.sub {
         label.textContent = '🖼 Photo';
         thumb.appendChild(thumbIcon);
         thumb.appendChild(label);
-        thumb.addEventListener('click', () => openLightbox(imgSrc));
+        thumb.addEventListener('click', (e) => { e.stopPropagation(); openLightbox(imgSrc); });
         bubble.appendChild(thumb);
       }
       if (m.text) {
@@ -2184,19 +2438,89 @@ p.sub {
     }
   }
 
+  function startReply(message) {
+    cancelEdit(); // can't reply and edit at the same time
+    replyingTo = {
+      id: message.id,
+      sender: message.sender,
+      text: message.text || '',
+      hasImage: !!message.image
+    };
+    replyBannerName.textContent = message.sender;
+    replyBannerText.textContent = message.text || (message.image ? '🖼 Photo' : '');
+    replyBanner.classList.add('active');
+    inputEl.focus();
+  }
+
+  function cancelReply() {
+    replyingTo = null;
+    replyBanner.classList.remove('active');
+  }
+
+  replyBannerClose.addEventListener('click', cancelReply);
+
+  function startEdit(message) {
+    if (message.sender !== myName) return; // can only edit your own
+    cancelReply(); // can't reply and edit at the same time
+    editingMessage = message;
+    inputEl.value = message.text || '';
+    editBanner.classList.add('active');
+    sendBtn.textContent = '✓';
+    sendBtn.title = 'Save edit';
+    inputEl.focus();
+  }
+
+  function cancelEdit() {
+    editingMessage = null;
+    editBanner.classList.remove('active');
+    sendBtn.textContent = '➤';
+    sendBtn.title = 'Send';
+    inputEl.value = '';
+  }
+
+  editBannerClose.addEventListener('click', cancelEdit);
+
   async function sendMessage() {
     const text = inputEl.value.trim();
+
+    if (editingMessage) {
+      if (!text && !editingMessage.image) return; // can't blank out a text-only message
+      sendBtn.disabled = true;
+      try {
+        const result = await api('/api/messages/edit', {
+          method: 'POST',
+          body: JSON.stringify({ id: editingMessage.id, sender: myName, text })
+        });
+        if (result.ok) {
+          cancelEdit();
+          await renderMessages();
+        } else {
+          setConnectionError(result.error || "Couldn't save edit.");
+        }
+      } catch (e) {
+        setConnectionError("Couldn't save edit — server unreachable.");
+      }
+      sendBtn.disabled = false;
+      return;
+    }
+
     if (!text && !pendingImage) return;
     sendBtn.disabled = true;
     try {
       await api('/api/messages', {
         method: 'POST',
-        body: JSON.stringify({ sender: myName, text, image: pendingImage ? pendingImage.filename : null })
+        body: JSON.stringify({
+          sender: myName,
+          text,
+          image: pendingImage ? pendingImage.filename : null,
+          replyTo: replyingTo ? replyingTo.id : null
+        })
       });
       inputEl.value = '';
       pendingImage = null;
       attachPreview.classList.remove('active');
       attachPreviewImg.src = '';
+      cancelReply();
       await renderMessages();
       messagesEl.scrollTop = messagesEl.scrollHeight;
     } catch (e) {
