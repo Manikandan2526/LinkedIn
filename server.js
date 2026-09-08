@@ -25,7 +25,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 // ---- Daily password ----
 // Change this each day and tell the other person. Case-insensitive.
 // Today's password:
-const DAILY_PASSWORD = 'pus';
+const DAILY_PASSWORD = 'pussy';
 
 app.use('/images', express.static(IMAGES_DIR));
 
