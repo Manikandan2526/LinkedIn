@@ -22,6 +22,11 @@ const SEEN_FILE = path.join(DATA_DIR, 'seen.txt');
 const VALID_USERS = ['Tom', 'Jerry'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
+// ---- Daily password ----
+// Change this each day and tell the other person. Case-insensitive.
+// Today's password:
+const DAILY_PASSWORD = 'pussy';
+
 app.use('/images', express.static(IMAGES_DIR));
 
 async function ensureFiles() {
@@ -171,6 +176,18 @@ app.post('/api/seen', async (req, res) => {
 app.get('/api/seen', async (req, res) => {
   const seen = await readJsonFile(SEEN_FILE, {});
   res.json(seen);
+});
+
+// ---- Password gate ----
+// Checked once per device per day on the client before it lets someone
+// pick Tom or Jerry. Kept server-side so the password isn't just sitting
+// in the page source.
+
+app.post('/api/verify-password', (req, res) => {
+  const { password } = req.body || {};
+  const ok = typeof password === 'string' &&
+    password.trim().toLowerCase() === DAILY_PASSWORD.trim().toLowerCase();
+  res.json({ ok });
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
