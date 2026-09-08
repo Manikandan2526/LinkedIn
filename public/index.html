@@ -24,6 +24,7 @@
   --incoming: #f1f1f1;
   --online: #35c759;
   --danger: #e85d5d;
+  --seen: #4f8cff;
 }
 
 * {
@@ -49,7 +50,7 @@ body {
 
   color: var(--text);
 
-  font-size: 11px;
+  font-size: 13px;
 
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -90,16 +91,32 @@ body {
     box-shadow 0.2s ease;
 }
 
+/* ---- Size variants (resize control) ---- */
+.phone.size-sm {
+  width: 300px;
+  height: 420px;
+}
+
+.phone.size-md {
+  width: 360px;
+  height: 520px;
+}
+
+.phone.size-lg {
+  width: 440px;
+  height: 620px;
+}
+
 
 /* =========================================================
    MINIMIZED
    ========================================================= */
 
 .phone.minimized {
-  width: 64px;
-  height: 64px;
+  width: 64px !important;
+  height: 64px !important;
 
-  border-radius: 50%;
+  border-radius: 50% !important;
 
   right: 24px;
   bottom: 24px;
@@ -332,6 +349,46 @@ body {
   color: var(--danger);
 }
 
+/* ---- Resize control ---- */
+.size-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: #f3f3f3;
+  border-radius: 5px;
+  padding: 2px;
+  margin-right: 4px;
+}
+
+.size-btn {
+  width: 22px;
+  height: 22px;
+
+  border: none;
+  background: transparent;
+  color: #666;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  border-radius: 3px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.size-btn:hover {
+  color: #222;
+}
+
+.size-btn.active {
+  background: var(--white);
+  color: var(--accent-dark);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
 
 /* =========================================================
    NOTICE
@@ -424,17 +481,22 @@ body {
 }
 
 .row .sender {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 700;
   color: #000000;
   margin-bottom: 2px;
+  line-height: 15px;
 }
 
 .row .sender-time {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 400;
   color: #777;
-  margin-left: 6px;
+  white-space: nowrap;
+  margin-left: 0;
 }
 
 
@@ -480,6 +542,25 @@ body {
   color: var(--text);
 
   text-align: left;
+}
+
+/* ---- Seen / read receipt (LinkedIn style) ---- */
+.seen-indicator {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+
+  margin-top: 3px;
+
+  font-size: 10px;
+  color: var(--seen);
+
+  line-height: 13px;
+}
+
+.seen-indicator .seen-check {
+  font-size: 10px;
+  line-height: 1;
 }
 
 
@@ -1134,7 +1215,10 @@ p.sub {
     background: white;
   }
 
-  .phone {
+  .phone,
+  .phone.size-sm,
+  .phone.size-md,
+  .phone.size-lg {
     right: 10px;
     bottom: 10px;
     left: 10px;
@@ -1149,19 +1233,23 @@ p.sub {
   .phone.minimized {
     left: auto;
 
-    width: 60px;
-    height: 60px;
+    width: 60px !important;
+    height: 60px !important;
 
     right: 18px;
     bottom: 18px;
 
-    border-radius: 50%;
+    border-radius: 50% !important;
+  }
+
+  .size-group {
+    display: none;
   }
 }
 </style>
 </head>
 <body>
-  <div class="phone minimized" id="chatWindow">
+  <div class="phone minimized size-md" id="chatWindow">
 
     <!-- Minimized launcher -->
     <div class="chat-launcher" id="chatLauncher">
@@ -1262,7 +1350,13 @@ p.sub {
   
   
           <div class="header-actions">
-  
+
+            <div class="size-group" id="sizeGroup">
+              <button class="size-btn" data-size="sm" title="Small">S</button>
+              <button class="size-btn" data-size="md" title="Medium">M</button>
+              <button class="size-btn" data-size="lg" title="Large">L</button>
+            </div>
+
             <button
               class="header-btn clear-btn"
               id="clearBtn"
@@ -1476,14 +1570,17 @@ p.sub {
   const API_BASE = "";
 
   const NAME_KEY = 'just-us-my-name';
+  const SIZE_KEY = 'just-us-size';
   const ONLINE_THRESHOLD_MS = 8000;
   const TICK_MS = 3000;
   const VALID_NAMES = ['Tom', 'Jerry'];
+  const VALID_SIZES = ['sm', 'md', 'lg'];
 
   let myName = null;
   let otherName = null;
   let tickTimer = null;
   let pendingImage = null; // { filename, previewUrl } once uploaded, before sending
+  let lastMarkedSeenId = null; // avoid spamming /api/seen with the same id
 
   const ORIGINAL_TITLE = document.title;
   let unreadCount = 0;
@@ -1607,6 +1704,34 @@ p.sub {
   function saveMyName(name) { localStorage.setItem(NAME_KEY, name); }
   function clearMyStoredName() { localStorage.removeItem(NAME_KEY); }
 
+  // ---- Resize (Small / Medium / Large) ----
+  const chatWindow = document.getElementById('chatWindow');
+  const sizeGroup = document.getElementById('sizeGroup');
+
+  function getStoredSize() {
+    const v = localStorage.getItem(SIZE_KEY);
+    return VALID_SIZES.includes(v) ? v : 'md';
+  }
+
+  function applySize(size) {
+    if (!VALID_SIZES.includes(size)) size = 'md';
+    chatWindow.classList.remove('size-sm', 'size-md', 'size-lg');
+    chatWindow.classList.add('size-' + size);
+    sizeGroup.querySelectorAll('.size-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-size') === size);
+    });
+    localStorage.setItem(SIZE_KEY, size);
+  }
+
+  sizeGroup.querySelectorAll('.size-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      applySize(btn.getAttribute('data-size'));
+    });
+  });
+
+  applySize(getStoredSize());
+
   function enterChat() {
     otherName = otherOf(myName);
     screenSelect.classList.remove('active');
@@ -1633,14 +1758,22 @@ p.sub {
     myName = null; otherName = null;
     unreadInitialized = false;
     lastSeenMessageKey = null;
+    lastMarkedSeenId = null;
     clearUnread();
     screenChat.classList.remove('active');
     screenSelect.classList.add('active');
   });
 
 
+  function formatTimeMs(ms) {
+    if (ms == null || Number.isNaN(ms)) return '';
+    const date = new Date(ms);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
   function formatMessageTime(m) {
-    const raw = m.createdAt ?? m.timestamp ?? m.time;
+    const raw = m.createdAt ?? m.timestamp ?? m.ts ?? m.time;
     if (raw == null || raw === '') return '';
 
     let date;
@@ -1724,6 +1857,24 @@ p.sub {
     lastSeenMessageKey = latestKey;
   }
 
+  // ---- Seen / read receipts ----
+  function isChatActivelyVisible() {
+    return !document.hidden && !chatWindow.classList.contains('minimized') && screenChat.classList.contains('active');
+  }
+
+  async function markSeenIfNeeded(visible) {
+    if (!isChatActivelyVisible() || !visible.length) return;
+    const lastMsg = visible[visible.length - 1];
+    if (lastMsg.id == null || lastMsg.id === lastMarkedSeenId) return;
+    try {
+      await api('/api/seen', {
+        method: 'POST',
+        body: JSON.stringify({ user: myName, lastSeenId: lastMsg.id })
+      });
+      lastMarkedSeenId = lastMsg.id;
+    } catch (e) { /* best-effort */ }
+  }
+
   async function renderMessages() {
     let all;
     try {
@@ -1733,8 +1884,16 @@ p.sub {
       setConnectionError("Can't reach the server right now.");
       return;
     }
+
+    let seenData = {};
+    try {
+      seenData = await api('/api/seen');
+    } catch (e) { /* read receipts are best-effort */ }
+
     const visible = all.filter(m => !(m.clearedBy || []).includes(myName));
     trackUnreadMessages(visible);
+    markSeenIfNeeded(visible);
+
     // Preserve scroll position unless user is already at (or near) the bottom
     const wasNearBottom = (messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight) < 40;
     messagesEl.innerHTML = '';
@@ -1745,6 +1904,12 @@ p.sub {
       messagesEl.appendChild(empty);
       return;
     }
+
+    const lastMsg = visible[visible.length - 1];
+    const otherSeen = seenData[otherName];
+    const showSeenOnLast = lastMsg && lastMsg.sender === myName &&
+      otherSeen && otherSeen.lastSeenId === lastMsg.id;
+
     visible.forEach(m => {
       const row = document.createElement('div');
       const mine = m.sender === myName;
@@ -1791,6 +1956,23 @@ p.sub {
         bubble.appendChild(textEl);
       }
       row.appendChild(bubble);
+
+      // LinkedIn-style read receipt: shown only under the very last message,
+      // and only when it's mine and the other person has seen up to it.
+      if (m === lastMsg && showSeenOnLast) {
+        const seenEl = document.createElement('div');
+        seenEl.className = 'seen-indicator';
+        const check = document.createElement('span');
+        check.className = 'seen-check';
+        check.textContent = '✓✓';
+        const label = document.createElement('span');
+        const seenTime = formatTimeMs(otherSeen.seenAt);
+        label.textContent = seenTime ? `Seen ${seenTime}` : 'Seen';
+        seenEl.appendChild(check);
+        seenEl.appendChild(label);
+        row.appendChild(seenEl);
+      }
+
       messagesEl.appendChild(row);
     });
     if (wasNearBottom) {
@@ -1858,7 +2040,6 @@ p.sub {
   });
 
   // ---- Minimize / restore ----
-  const chatWindow = document.getElementById('chatWindow');
   const chatLauncher = document.getElementById('chatLauncher');
   const minimizeBtn = document.getElementById('minimizeBtn');
 
@@ -1866,6 +2047,7 @@ p.sub {
   chatLauncher.addEventListener('click', () => {
     chatWindow.classList.remove('minimized');
     clearUnread();
+    renderMessages();
   });
 
   // Clicking the "-" button minimizes the chat again.
@@ -1878,6 +2060,7 @@ p.sub {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && !chatWindow.classList.contains('minimized')) {
       clearUnread();
+      renderMessages();
     }
   });
 
