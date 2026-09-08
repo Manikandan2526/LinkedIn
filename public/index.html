@@ -1117,6 +1117,92 @@ p.sub {
 
 
 /* =========================================================
+   PASSWORD SCREEN
+   ========================================================= */
+
+.pw-input {
+  width: 100%;
+
+  background: #f7f7f7;
+
+  border: 1px solid #dedede;
+
+  color: #242424;
+
+  border-radius: 6px;
+
+  padding: 10px 12px;
+
+  font-family:
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  font-size: 14px;
+
+  outline: none;
+
+  margin-bottom: 8px;
+
+  letter-spacing: 1px;
+}
+
+.pw-input:focus {
+  border-color: var(--accent);
+
+  background: #ffffff;
+}
+
+.pw-error {
+  min-height: 15px;
+
+  font-size: 11px;
+
+  color: var(--danger);
+
+  margin-bottom: 10px;
+
+  line-height: 15px;
+}
+
+.pw-submit {
+  width: 100%;
+
+  background: var(--accent);
+
+  color: white;
+
+  border: none;
+
+  padding: 10px;
+
+  border-radius: 6px;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  margin-bottom: 6px;
+}
+
+.pw-submit:hover {
+  background: var(--accent-dark);
+}
+
+.pw-submit:disabled {
+  opacity: 0.5;
+
+  cursor: default;
+}
+
+#pwBackLink {
+  padding: 4px 0 0;
+}
+
+
+/* =========================================================
    CONFIRM DIALOG
    ========================================================= */
 
@@ -1271,7 +1357,7 @@ p.sub {
             💬
           </div>
   
-          <h1>Just Us</h1>
+          <h1>LinkedIn</h1>
   
           <p class="sub">
             A private little chat for the two of you.
@@ -1306,6 +1392,47 @@ p.sub {
   
         </div>
   
+      </div>
+
+
+      <!-- =====================================================
+           PASSWORD SCREEN (asked once per day, per device)
+           ===================================================== -->
+
+      <div class="screen pad" id="screen-password">
+
+        <div class="select-header">
+
+          <div class="logo">
+            🔒
+          </div>
+
+          <h1>Enter password</h1>
+
+          <p class="sub">
+            Enter password to continue as
+            <strong id="pwWhoName">—</strong>.
+          </p>
+
+        </div>
+
+        <input
+          type="password"
+          id="pwInput"
+          class="pw-input"
+          placeholder="Password"
+          autocomplete="off">
+
+        <div class="pw-error" id="pwError"></div>
+
+        <button class="pw-submit" id="pwSubmit" type="button">
+          Unlock
+        </button>
+
+        <div class="switch-link" id="pwBackLink">
+          ← Back
+        </div>
+
       </div>
   
   
@@ -1571,6 +1698,7 @@ p.sub {
 
   const NAME_KEY = 'just-us-my-name';
   const SIZE_KEY = 'just-us-size';
+  const PW_DATE_KEY = 'just-us-pw-verified-date';
   const ONLINE_THRESHOLD_MS = 8000;
   const TICK_MS = 3000;
   const VALID_NAMES = ['Tom', 'Jerry'];
@@ -1588,7 +1716,13 @@ p.sub {
   let unreadInitialized = false;
 
   const screenSelect = document.getElementById('screen-select');
+  const screenPassword = document.getElementById('screen-password');
   const screenChat = document.getElementById('screen-chat');
+  const pwWhoName = document.getElementById('pwWhoName');
+  const pwInput = document.getElementById('pwInput');
+  const pwError = document.getElementById('pwError');
+  const pwSubmit = document.getElementById('pwSubmit');
+  const pwBackLink = document.getElementById('pwBackLink');
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
@@ -1744,11 +1878,81 @@ p.sub {
     startTicking();
   }
 
+  let pendingName = null;
+
+  function todayStr() {
+    // Local calendar date, e.g. "2026-09-08" — used to key the daily password.
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function isVerifiedToday() {
+    return localStorage.getItem(PW_DATE_KEY) === todayStr();
+  }
+
+  function markVerifiedToday() {
+    localStorage.setItem(PW_DATE_KEY, todayStr());
+  }
+
+  function showPasswordScreen(name) {
+    pendingName = name;
+    pwWhoName.textContent = name;
+    pwInput.value = '';
+    pwError.textContent = '';
+    screenSelect.classList.remove('active');
+    screenPassword.classList.add('active');
+    setTimeout(() => pwInput.focus(), 50);
+  }
+
+  function showSelectScreen() {
+    pendingName = null;
+    screenPassword.classList.remove('active');
+    screenSelect.classList.add('active');
+  }
+
+  async function submitPassword() {
+    const value = pwInput.value;
+    if (!value) {
+      pwError.textContent = 'Enter a password to continue.';
+      return;
+    }
+    pwSubmit.disabled = true;
+    try {
+      const result = await api('/api/verify-password', {
+        method: 'POST',
+        body: JSON.stringify({ password: value })
+      });
+      if (result.ok) {
+        markVerifiedToday();
+        myName = pendingName;
+        saveMyName(myName);
+        screenPassword.classList.remove('active');
+        enterChat();
+      } else {
+        pwError.textContent = "That's not today's password — try again.";
+        pwInput.value = '';
+        pwInput.focus();
+      }
+    } catch (e) {
+      pwError.textContent = "Couldn't reach the server — try again.";
+    }
+    pwSubmit.disabled = false;
+  }
+
+  pwSubmit.addEventListener('click', submitPassword);
+  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitPassword(); });
+  pwBackLink.addEventListener('click', showSelectScreen);
+
   document.querySelectorAll('.who-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      myName = btn.getAttribute('data-name');
-      saveMyName(myName);
-      enterChat();
+      const name = btn.getAttribute('data-name');
+      if (isVerifiedToday()) {
+        myName = name;
+        saveMyName(myName);
+        enterChat();
+      } else {
+        showPasswordScreen(name);
+      }
     });
   });
 
@@ -2072,7 +2276,14 @@ p.sub {
 
   (function init() {
     const stored = getMyStoredName();
-    if (stored) { myName = stored; enterChat(); }
+    if (!stored) return;
+    if (isVerifiedToday()) {
+      myName = stored;
+      enterChat();
+    } else {
+      // Remembered device, but today's password hasn't been entered yet.
+      showPasswordScreen(stored);
+    }
   })();
 </script>
 
