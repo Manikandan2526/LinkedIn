@@ -1,0 +1,10 @@
+{
+  "Tom": {
+    "lastSeenId": "1788931320382-kecitc",
+    "seenAt": 1788931320399
+  },
+  "Jerry": {
+    "lastSeenId": "1788931320382-kecitc",
+    "seenAt": 1788931321547
+  }
+}
